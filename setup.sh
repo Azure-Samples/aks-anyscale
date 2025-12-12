@@ -35,6 +35,24 @@ else
     --public-access off
 fi
 
+echo "==> Blob Storage CORS"
+CORS_ORIGIN="https://console.anyscale.com"
+if az storage cors list \
+  --services b \
+  --account-name "$STORAGE_ACCOUNT" | jq -e --arg origin "$CORS_ORIGIN" '.[] | select(.AllowedOrigins==$origin and (.AllowedMethods | index("GET")) and .MaxAgeInSeconds==600)' >/dev/null; then
+  echo "CORS rule for $CORS_ORIGIN already exists"
+else
+  az storage cors add \
+    --services b \
+    --account-name "$STORAGE_ACCOUNT" \
+    --auth-mode login \
+    --origins "$CORS_ORIGIN" \
+    --methods GET \
+    --allowed-headers "*" \
+    --exposed-headers "" \
+    --max-age 600
+fi
+
 echo "==> User Assigned Identity"
 if az identity show -g "$RESOURCE_GROUP" -n "$USER_IDENTITY_NAME" &>/dev/null; then
   echo "User assigned identity $USER_IDENTITY_NAME already exists"
@@ -181,6 +199,7 @@ for REGION in $REGIONS; do
       --cluster-name "$AKS_CLUSTER_NAME" \
       --name gpu \
       --enable-cluster-autoscaler \
+      --node-count 0 \
       --min-count "$GPU_POOL_MIN_COUNT" \
       --max-count "$GPU_POOL_MAX_COUNT" \
       --node-vm-size "$GPU_POOL_VM_SIZE" \
@@ -246,7 +265,7 @@ for REGION in $REGIONS; do
   helm upgrade anyscale-operator anyscale/anyscale-operator \
     --set-string global.cloudDeploymentId="$CLOUD_DEPLOYMENT_ID" \
     --set-string global.cloudProvider=azure \
-    --set-string global.auth.anyscaleCliToken="$ANYSCALE_CLI_TOKEN" \
+    --set-string global.auth.anyscaleCliToken=$ANYSCALE_CLI_TOKEN \
     --set-string global.auth.iamIdentity="$IDENTITY_CLIENT_ID" \
     --set-string workloads.serviceAccount.name=anyscale-operator \
     -f values_anyscale.yaml \

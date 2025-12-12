@@ -1,4 +1,4 @@
-name: azure-k8s-$REGION
+name: k8s-azure-$REGION
 provider: AZURE
 compute_stack: K8S
 region: $REGION
