@@ -1,57 +1,68 @@
-# Project Name
+# AKS Anyscale Setup
 
-(short, 1-3 sentenced, description of the project)
+Automated multi-region Azure Kubernetes Service (AKS) cluster setup configured for Ray workloads with GPU support.
 
-## Features
+## Overview
 
-This project framework provides the following features:
+This repository provides infrastructure-as-code automation to deploy production-ready AKS clusters across multiple Azure regions. Each cluster is configured with:
 
-* Feature 1
-* Feature 2
-* ...
+* Azure CNI with Overlay networking
+* OIDC and Workload Identity for secure authentication
+* Three node pools: system, CPU (on-demand), and GPU (spot instances with A100 GPUs)
+* NGINX Ingress Controller with LoadBalancer
+* NVIDIA Device Plugin for GPU workload scheduling
+* Anyscale Operator for AI/ML workload orchestration
 
-## Getting Started
+## Prerequisites
 
-### Prerequisites
-
-(ideally very short, if any)
-
-- OS
-- Library version
-- ...
-
-### Installation
-
-(ideally very short)
-
-- npm install [package name]
-- mvn install
-- ...
-
-### Quickstart
-(Add steps to get up and running quickly)
-
-1. git clone [repository clone url]
-2. cd [repository name]
-3. ...
+- Azure CLI (`az`) installed and authenticated
+- Anyscale CLI installed with credentials at `~/.anyscale/credentials.json`
+- Helm 3.x
+- `jq` for JSON parsing
 
 
-## Demo
+## Quick Start
 
-A demo app is included to show how to use the project.
+1. Clone the repository:
+```bash
+git clone <repository-url>
+cd aks-anyscale
+```
 
-To run the demo, follow these steps:
+2. (Optional) Configure environment variables:
+```bash
+export ANYSCALE_CLOUD_NAME="my-cloud-name"
+export REGIONS="eastus westus"
+export PRIMARY_REGION="eastus"
+export SUBSCRIPTION="your-subscription-id"
+export RESOURCE_GROUP="my-rg"
+```
 
-(Add steps to start up the demo)
+3. Run the setup script:
+```bash
+./setup.sh
+```
 
-1.
-2.
-3.
+The script will provision all infrastructure including:
+- Resource group and storage account
+- Virtual networks with NAT gateways
+- AKS clusters with three node pools
+- Kubernetes add-ons (NGINX, NVIDIA Device Plugin)
+- Anyscale Operator installation and cloud registration
 
-## Resources
+## Configuration
 
-(Any additional resources or related projects)
+Default configuration can be overridden via environment variables. See `setup.sh` for all available options.
 
-- Link to supporting information
-- Link to similar sample
-- ...
+### Helm Values
+
+Configuration files for Kubernetes components:
+- `values_nginx.yaml`: NGINX Ingress Controller settings
+- `values_nvidia.yaml`: NVIDIA Device Plugin settings
+- `values_anyscale.yaml`: Anyscale Operator custom instance types
+- `cloud_resource.yaml`: Template for secondary region registration
+
+## Reference
+
+- [Anyscale Documentation](https://docs.anyscale.com/)
+- [AKS Documentation](https://learn.microsoft.com/en-us/azure/aks/)

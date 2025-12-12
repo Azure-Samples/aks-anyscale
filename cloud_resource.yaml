@@ -1,0 +1,10 @@
+name: azure-k8s-$REGION
+provider: AZURE
+compute_stack: K8S
+region: $REGION
+object_storage:
+   bucket_name: abfss://${STORAGE_CONTAINER}@${STORAGE_ACCOUNT}.dfs.core.windows.net
+file_storage:
+  file_storage_id: https://${STORAGE_ACCOUNT}.blob.core.windows.net
+kubernetes_config:
+  anyscale_operator_iam_identity: $IDENTITY_CLIENT_ID
