@@ -25,7 +25,7 @@ else
 fi
 
 echo "==> Storage Container"
-if az storage container show --name "$STORAGE_CONTAINER" --account-name "$STORAGE_ACCOUNT" --auth-mode login &>/dev/null; then
+if az storage container show --name "$STORAGE_CONTAINER" --account-name "$STORAGE_ACCOUNT" &>/dev/null; then
   echo "Storage container $STORAGE_CONTAINER already exists"
 else
   az storage container create \
@@ -252,16 +252,27 @@ for REGION in $REGIONS; do
     echo "----> Generated config saved to $CLOUD_RESOURCE_YAML"
     cat "$CLOUD_RESOURCE_YAML"
 
-    anyscale cloud resource create --cloud "$ANYSCALE_CLOUD_NAME" -f "$CLOUD_RESOURCE_YAML"
+    anyscale cloud resource create --cloud "$ANYSCALE_CLOUD_NAME" -f "$CLOUD_RESOURCE_YAML" --skip-verification
   fi
 
   echo "==> Install Anyscale Operator for $REGION"
   helm repo add anyscale https://anyscale.github.io/helm-charts 2>/dev/null || true
   helm repo update anyscale
 
-  CLOUD_DEPLOYMENT_ID=$(anyscale cloud get --name "$ANYSCALE_CLOUD_NAME" | grep -oP 'cldrsrc_[a-z0-9]+' | head -1)
-  ANYSCALE_CLI_TOKEN=$(cat ~/.anyscale/credentials.json  | jq .cli_token)
+  CLOUD_RESOURCE_NAME=k8s-azure-$REGION
+  CLOUD_DEPLOYMENT_ID="$(
+    anyscale cloud get --name "$ANYSCALE_CLOUD_NAME" | awk -v target="$CLOUD_RESOURCE_NAME" '
+      $1=="-" && $2=="cloud_resource_id:" { id=$3 }
+      $1=="name:" && $2==target { print id; exit }
+    '
+  )"
+  if [[ -z "${CLOUD_DEPLOYMENT_ID}" ]]; then
+    echo "ERROR: Could not find cloud_resource_id for cloud resource name '${CLOUD_RESOURCE_NAME}' in cloud '${ANYSCALE_CLOUD_NAME}'" >&2
+    exit 1
+  fi
+
   echo "Installing/updating anyscale-operator with Cloud Deployment ID: $CLOUD_DEPLOYMENT_ID"
+  ANYSCALE_CLI_TOKEN=$(cat ~/.anyscale/credentials.json  | jq .cli_token)
   helm upgrade anyscale-operator anyscale/anyscale-operator \
     --set-string global.cloudDeploymentId="$CLOUD_DEPLOYMENT_ID" \
     --set-string global.cloudProvider=azure \
