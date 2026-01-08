@@ -104,6 +104,43 @@ for REGION in $REGIONS; do
       --address-prefixes "$SUBNET_CIDR"
   fi
 
+  echo "==> Network Security Group for $REGION"
+  NSG_NAME="${VNET_NAME}-${SUBNET_NAME}-nsg"
+  if az network nsg show --resource-group "$RESOURCE_GROUP" --name "$NSG_NAME" &>/dev/null; then
+    echo "NSG $NSG_NAME already exists"
+  else
+    az network nsg create \
+      --resource-group "$RESOURCE_GROUP" \
+      --name "$NSG_NAME" \
+      --location "$REGION"
+  fi
+
+  echo "==> Adding HTTPS Inbound Rule to NSG for $REGION"
+  if az network nsg rule show --resource-group "$RESOURCE_GROUP" --nsg-name "$NSG_NAME" --name AllowHttpsInbound &>/dev/null; then
+    echo "HTTPS inbound rule already exists"
+  else
+    az network nsg rule create \
+      --resource-group "$RESOURCE_GROUP" \
+      --nsg-name "$NSG_NAME" \
+      --name AllowHttpsInbound \
+      --priority 100 \
+      --direction Inbound \
+      --access Allow \
+      --protocol Tcp \
+      --source-address-prefixes '*' \
+      --source-port-ranges '*' \
+      --destination-address-prefixes '*' \
+      --destination-port-ranges 443 \
+      --description "Allow HTTPS inbound traffic"
+  fi
+
+  echo "==> Associating NSG with subnet for $REGION"
+  az network vnet subnet update \
+    --resource-group "$RESOURCE_GROUP" \
+    --vnet-name "$VNET_NAME" \
+    --name "$SUBNET_NAME" \
+    --network-security-group "$NSG_NAME" &>/dev/null || true
+
   echo "==> Public IP for $REGION"
   if az network public-ip show --resource-group "$RESOURCE_GROUP" --name "$NAT_PIP_NAME" &>/dev/null; then
     echo "Public IP $NAT_PIP_NAME already exists"
