@@ -190,20 +190,38 @@ for REGION in $REGIONS; do
       --node-taints node.anyscale.com/capacity-type=ON_DEMAND:NoSchedule
   fi
 
-  echo "==> Adding GPU Pool (spot) for $REGION"
-  if az aks nodepool show --resource-group "$RESOURCE_GROUP" --cluster-name "$AKS_CLUSTER_NAME" --name gpu &>/dev/null; then
-    echo "GPU node pool already exists"
+  echo "==> Adding NC24ADS Pool (spot) for $REGION"
+  if az aks nodepool show --resource-group "$RESOURCE_GROUP" --cluster-name "$AKS_CLUSTER_NAME" --name nc24ads &>/dev/null; then
+    echo "NC24ADS node pool already exists"
   else
     az aks nodepool add \
       --resource-group "$RESOURCE_GROUP" \
       --cluster-name "$AKS_CLUSTER_NAME" \
-      --name gpu \
+      --name nc24ads \
       --enable-cluster-autoscaler \
       --node-count 0 \
-      --min-count "$GPU_POOL_MIN_COUNT" \
-      --max-count "$GPU_POOL_MAX_COUNT" \
-      --node-vm-size "$GPU_POOL_VM_SIZE" \
+      --min-count "$NC24ADS_POOL_MIN_COUNT" \
+      --max-count "$NC24ADS_POOL_MAX_COUNT" \
+      --node-vm-size "$NC24ADS_POOL_VM_SIZE" \
       --labels "node.anyscale.com/capacity-type=SPOT" "nvidia.com/gpu.product=NVIDIA-A100" "nvidia.com/gpu.count=1" \
+      --priority Spot \
+      --node-taints "node.anyscale.com/capacity-type=SPOT:NoSchedule,nvidia.com/gpu=present:NoSchedule,node.anyscale.com/accelerator-type=GPU:NoSchedule"
+  fi
+
+  echo "==> Adding ND96AMSR Pool (spot) for $REGION"
+  if az aks nodepool show --resource-group "$RESOURCE_GROUP" --cluster-name "$AKS_CLUSTER_NAME" --name nd96amsr &>/dev/null; then
+    echo "ND96AMSR node pool already exists"
+  else
+    az aks nodepool add \
+      --resource-group "$RESOURCE_GROUP" \
+      --cluster-name "$AKS_CLUSTER_NAME" \
+      --name nd96amsr \
+      --enable-cluster-autoscaler \
+      --node-count 0 \
+      --min-count "$ND96AMSR_POOL_MIN_COUNT" \
+      --max-count "$ND96AMSR_POOL_MAX_COUNT" \
+      --node-vm-size "$ND96AMSR_POOL_VM_SIZE" \
+      --labels "node.anyscale.com/capacity-type=SPOT" "nvidia.com/gpu.product=NVIDIA-A100" "nvidia.com/gpu.count=8" \
       --priority Spot \
       --node-taints "node.anyscale.com/capacity-type=SPOT:NoSchedule,nvidia.com/gpu=present:NoSchedule,node.anyscale.com/accelerator-type=GPU:NoSchedule"
   fi

@@ -8,7 +8,7 @@ This repository provides infrastructure-as-code automation to deploy production-
 
 * Azure CNI with Overlay networking
 * OIDC and Workload Identity for secure authentication
-* Three node pools: system, CPU (on-demand), and GPU (spot instances with A100 GPUs)
+* Multiple node pools: system, CPU (on-demand), and GPU (spot instances with A100 GPUs)
 * NGINX Ingress Controller with LoadBalancer
 * NVIDIA Device Plugin for GPU workload scheduling
 * Anyscale Operator for AI/ML workload orchestration
