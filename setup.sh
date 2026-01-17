@@ -227,37 +227,37 @@ for REGION in $REGIONS; do
       --node-taints node.anyscale.com/capacity-type=ON_DEMAND:NoSchedule
   fi
 
-  echo "==> Adding NC24ADS Pool (spot) for $REGION"
-  if az aks nodepool show --resource-group "$RESOURCE_GROUP" --cluster-name "$AKS_CLUSTER_NAME" --name nc24ads &>/dev/null; then
-    echo "NC24ADS node pool already exists"
+  echo "==> Adding T4 Pool (spot) for $REGION"
+  if az aks nodepool show --resource-group "$RESOURCE_GROUP" --cluster-name "$AKS_CLUSTER_NAME" --name t4 &>/dev/null; then
+    echo "T4 node pool already exists"
   else
     az aks nodepool add \
       --resource-group "$RESOURCE_GROUP" \
       --cluster-name "$AKS_CLUSTER_NAME" \
-      --name nc24ads \
+      --name t4 \
       --enable-cluster-autoscaler \
       --node-count 0 \
-      --min-count "$NC24ADS_POOL_MIN_COUNT" \
-      --max-count "$NC24ADS_POOL_MAX_COUNT" \
-      --node-vm-size "$NC24ADS_POOL_VM_SIZE" \
-      --labels "node.anyscale.com/capacity-type=SPOT" "nvidia.com/gpu.product=NVIDIA-A100" "nvidia.com/gpu.count=1" \
+      --min-count "$T4_POOL_MIN_COUNT" \
+      --max-count "$T4_POOL_MAX_COUNT" \
+      --node-vm-size "$T4_POOL_VM_SIZE" \
+      --labels "node.anyscale.com/capacity-type=SPOT" "nvidia.com/gpu.product=NVIDIA-T4" "nvidia.com/gpu.count=1" \
       --priority Spot \
       --node-taints "node.anyscale.com/capacity-type=SPOT:NoSchedule,nvidia.com/gpu=present:NoSchedule,node.anyscale.com/accelerator-type=GPU:NoSchedule"
   fi
 
-  echo "==> Adding ND96AMSR Pool (spot) for $REGION"
-  if az aks nodepool show --resource-group "$RESOURCE_GROUP" --cluster-name "$AKS_CLUSTER_NAME" --name nd96amsr &>/dev/null; then
-    echo "ND96AMSR node pool already exists"
+  echo "==> Adding A100 Pool (spot) for $REGION"
+  if az aks nodepool show --resource-group "$RESOURCE_GROUP" --cluster-name "$AKS_CLUSTER_NAME" --name a100 &>/dev/null; then
+    echo "A100 node pool already exists"
   else
     az aks nodepool add \
       --resource-group "$RESOURCE_GROUP" \
       --cluster-name "$AKS_CLUSTER_NAME" \
-      --name nd96amsr \
+      --name a100 \
       --enable-cluster-autoscaler \
       --node-count 0 \
-      --min-count "$ND96AMSR_POOL_MIN_COUNT" \
-      --max-count "$ND96AMSR_POOL_MAX_COUNT" \
-      --node-vm-size "$ND96AMSR_POOL_VM_SIZE" \
+      --min-count "$A100_POOL_MIN_COUNT" \
+      --max-count "$A100_POOL_MAX_COUNT" \
+      --node-vm-size "$A100_POOL_VM_SIZE" \
       --labels "node.anyscale.com/capacity-type=SPOT" "nvidia.com/gpu.product=NVIDIA-A100" "nvidia.com/gpu.count=8" \
       --priority Spot \
       --node-taints "node.anyscale.com/capacity-type=SPOT:NoSchedule,nvidia.com/gpu=present:NoSchedule,node.anyscale.com/accelerator-type=GPU:NoSchedule"
