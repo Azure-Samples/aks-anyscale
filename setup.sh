@@ -195,6 +195,21 @@ for REGION in $REGIONS; do
       --node-vm-size "$SYSTEM_POOL_VM_SIZE"
   fi
 
+  AKS_CLUSTER_IDENTITY=$(az aks show \
+    --resource-group "${RESOURCE_GROUP}" \
+    --name "${AKS_CLUSTER_NAME}" \
+    --query "identity.principalId" \
+    -o tsv)
+
+  echo "Ensuring role assignment exists for identity $AKS_CLUSTER_IDENTITY"
+  if az role assignment create \
+    --assignee-object-id "$AKS_CLUSTER_IDENTITY" \
+    --assignee-principal-type ServicePrincipal \
+    --role "Storage Account Contributor" \
+    --scope "$STORAGE_ACCOUNT_ID" &>/dev/null; then
+    echo "Role assignment already exists or cannot verify due to conditional access policies"
+  fi
+
   echo "==> Federated Credential (ServiceAccount -> Identity) for $REGION"
   OIDC_ISSUER=$(az aks show -g "$RESOURCE_GROUP" -n "$AKS_CLUSTER_NAME" --query "oidcIssuerProfile.issuerUrl" -o tsv)
   FED_CRED_NAME="${AKS_CLUSTER_NAME}-operator-fic"
