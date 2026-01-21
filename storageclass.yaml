@@ -1,0 +1,20 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: blob-${STORAGE_PROTOCOL}
+
+provisioner: blob.csi.azure.com
+parameters:
+  protocol: ${STORAGE_PROTOCOL}
+  storageAccount: ${STORAGE_ACCOUNT}
+  resourceGroup: ${RESOURCE_GROUP}
+  clientID: ${IDENTITY_CLIENT_ID}
+  mountWithWorkloadIdentityToken: "true"
+
+mountOptions:
+  - -o allow_other
+  - --block-cache
+
+allowVolumeExpansion: true
+reclaimPolicy: Retain
+volumeBindingMode: Immediate

@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: blob-${STORAGE_PROTOCOL}
+  namespace: anyscale-operator
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: blob-${STORAGE_PROTOCOL}
+  resources:
+    requests:
+      storage: 100Gi

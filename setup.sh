@@ -39,13 +39,12 @@ echo "==> Blob Storage CORS"
 CORS_ORIGIN="https://console.anyscale.com"
 if az storage cors list \
   --services b \
-  --account-name "$STORAGE_ACCOUNT" | jq -e --arg origin "$CORS_ORIGIN" '.[] | select(.AllowedOrigins==$origin and (.AllowedMethods | index("GET")) and .MaxAgeInSeconds==600)' >/dev/null; then
+  --account-name "$STORAGE_ACCOUNT" >/dev/null; then
   echo "CORS rule for $CORS_ORIGIN already exists"
 else
   az storage cors add \
     --services b \
     --account-name "$STORAGE_ACCOUNT" \
-    --auth-mode login \
     --origins "$CORS_ORIGIN" \
     --methods GET \
     --allowed-headers "*" \
@@ -173,7 +172,7 @@ for REGION in $REGIONS; do
 
   SUBNET_ID=$(az network vnet subnet show -g "$RESOURCE_GROUP" --vnet-name "$VNET_NAME" -n "$SUBNET_NAME" --query id -o tsv)
 
-  echo "==> AKS Cluster (OIDC + Workload Identity + Overlay + NAT outbound) in $REGION"
+  echo "==> AKS Cluster (OIDC + Workload Identity + Overlay + NAT outbound + Blob CSI) in $REGION"
   if az aks show --resource-group "$RESOURCE_GROUP" --name "$AKS_CLUSTER_NAME" &>/dev/null; then
     echo "AKS cluster $AKS_CLUSTER_NAME already exists"
   else
@@ -185,6 +184,7 @@ for REGION in $REGIONS; do
       --kubernetes-version "$AKS_VERSION" \
       --enable-oidc-issuer \
       --enable-workload-identity \
+      --enable-blob-driver \
       --network-plugin azure \
       --network-plugin-mode overlay \
       --pod-cidr "$POD_CIDR" \
@@ -287,26 +287,19 @@ for REGION in $REGIONS; do
     --install
 
   echo "==> Register/Get Anyscale Cloud for $REGION"
+  CLOUD_RESOURCE_YAML="cloud_resource_${REGION}.yaml"
+  sed -e "s/\$REGION/${REGION}/g" \
+      -e "s/\${STORAGE_PROTOCOL}/${STORAGE_PROTOCOL}/g" \
+      -e "s/\${STORAGE_CONTAINER}/${STORAGE_CONTAINER}/g" \
+      -e "s/\${STORAGE_ACCOUNT}/${STORAGE_ACCOUNT}/g" \
+      -e "s/\$IDENTITY_CLIENT_ID/${IDENTITY_CLIENT_ID}/g" \
+      cloud_resource.yaml > "$CLOUD_RESOURCE_YAML"
+
+  echo "----> Generated config saved to $CLOUD_RESOURCE_YAML"
+  cat "$CLOUD_RESOURCE_YAML"
   if [[ "$REGION" == "$PRIMARY_REGION" ]]; then
-    anyscale cloud register \
-      --name "$ANYSCALE_CLOUD_NAME" \
-      --region "$REGION" \
-      --provider azure \
-      --compute-stack k8s \
-      --cloud-storage-bucket-name "abfss://${STORAGE_CONTAINER}@${STORAGE_ACCOUNT}.dfs.core.windows.net" \
-      --cloud-storage-bucket-endpoint "https://${STORAGE_ACCOUNT}.blob.core.windows.net"
+    anyscale cloud register --provider Azure --name "$ANYSCALE_CLOUD_NAME" -f "$CLOUD_RESOURCE_YAML" --skip-verifications
   else
-    echo "----> Generating cloud resource config for $REGION"
-    CLOUD_RESOURCE_YAML="cloud_resource-${REGION}.yaml"
-    sed -e "s/\$REGION/${REGION}/g" \
-        -e "s/\${STORAGE_CONTAINER}/${STORAGE_CONTAINER}/g" \
-        -e "s/\${STORAGE_ACCOUNT}/${STORAGE_ACCOUNT}/g" \
-        -e "s/\$IDENTITY_CLIENT_ID/${IDENTITY_CLIENT_ID}/g" \
-        cloud_resource.yaml > "$CLOUD_RESOURCE_YAML"
-
-    echo "----> Generated config saved to $CLOUD_RESOURCE_YAML"
-    cat "$CLOUD_RESOURCE_YAML"
-
     anyscale cloud resource create --cloud "$ANYSCALE_CLOUD_NAME" -f "$CLOUD_RESOURCE_YAML" --skip-verification
   fi
 
@@ -339,6 +332,20 @@ for REGION in $REGIONS; do
     --version 1.2.1 \
     --create-namespace \
     --install
+
+  echo "Creating StorageClass for PVC support"
+  STORAGECLASS_YAML="storageclass_$STORAGE_PROTOCOL.yaml"
+  sed -e "s/\${STORAGE_PROTOCOL}/${STORAGE_PROTOCOL}/g" \
+      -e "s/\${STORAGE_ACCOUNT}/${STORAGE_ACCOUNT}/g" \
+      -e "s/\${RESOURCE_GROUP}/${RESOURCE_GROUP}/g" \
+      -e "s/\${IDENTITY_CLIENT_ID}/${IDENTITY_CLIENT_ID}/g" \
+      storageclass.yaml > "$STORAGECLASS_YAML"
+  kubectl apply -f "$STORAGECLASS_YAML"
+
+  PVC_YAML="pvc_$STORAGE_PROTOCOL.yaml"
+  sed -e "s/\${STORAGE_PROTOCOL}/${STORAGE_PROTOCOL}/g" \
+      pvc.yaml > "$PVC_YAML"
+  kubectl apply -f "$PVC_YAML"
 
   echo "==> Outputs for $REGION"
   echo "  AKS Cluster Name: $AKS_CLUSTER_NAME"
