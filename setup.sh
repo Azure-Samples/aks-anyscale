@@ -39,7 +39,7 @@ echo "==> Blob Storage CORS"
 CORS_ORIGIN="https://console.anyscale.com"
 if az storage cors list \
   --services b \
-  --account-name "$STORAGE_ACCOUNT" >/dev/null; then
+  --account-name "$STORAGE_ACCOUNT" | jq -e --arg origin "$CORS_ORIGIN" '.[] | select(.AllowedOrigins == $origin)' >/dev/null 2>&1; then
   echo "CORS rule for $CORS_ORIGIN already exists"
 else
   az storage cors add \
