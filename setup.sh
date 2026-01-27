@@ -5,6 +5,7 @@ source variables.sh
 
 echo "==> Resource Group"
 az account set -s "$SUBSCRIPTION"
+AZURE_TENANT_ID=$(az account show --query tenantId -o tsv)
 if az group show --name "$RESOURCE_GROUP" &>/dev/null; then
   echo "Resource group $RESOURCE_GROUP already exists"
 else
@@ -51,6 +52,9 @@ else
     --exposed-headers "" \
     --max-age 600
 fi
+
+echo "==> Service Principal for Anyscale Kubernetes Operator Auth"
+az ad sp create --id "$ANYSCALE_SP_APP_ID"
 
 echo "==> User Assigned Identity"
 if az identity show -g "$RESOURCE_GROUP" -n "$USER_IDENTITY_NAME" &>/dev/null; then
@@ -307,7 +311,8 @@ for REGION in $REGIONS; do
       -e "s/\${STORAGE_PROTOCOL}/${STORAGE_PROTOCOL}/g" \
       -e "s/\${STORAGE_CONTAINER}/${STORAGE_CONTAINER}/g" \
       -e "s/\${STORAGE_ACCOUNT}/${STORAGE_ACCOUNT}/g" \
-      -e "s/\$IDENTITY_CLIENT_ID/${IDENTITY_CLIENT_ID}/g" \
+      -e "s/\${AZURE_TENANT_ID}/${AZURE_TENANT_ID}/g" \
+      -e "s/\${IDENTITY_PRINCIPAL_ID}/${IDENTITY_PRINCIPAL_ID}/g" \
       cloud_resource.yaml > "$CLOUD_RESOURCE_YAML"
 
   echo "----> Generated config saved to $CLOUD_RESOURCE_YAML"
@@ -335,12 +340,11 @@ for REGION in $REGIONS; do
   fi
 
   echo "Installing/updating anyscale-operator with Cloud Deployment ID: $CLOUD_DEPLOYMENT_ID"
-  ANYSCALE_CLI_TOKEN=$(cat ~/.anyscale/credentials.json  | jq .cli_token)
   helm upgrade anyscale-operator anyscale/anyscale-operator \
     --set-string global.cloudDeploymentId="$CLOUD_DEPLOYMENT_ID" \
     --set-string global.cloudProvider=azure \
-    --set-string global.auth.anyscaleCliToken=$ANYSCALE_CLI_TOKEN \
     --set-string global.auth.iamIdentity="$IDENTITY_CLIENT_ID" \
+    --set-string global.auth.audience="api://${ANYSCALE_SP_APP_ID}/.default" \
     --set-string workloads.serviceAccount.name=anyscale-operator \
     -f values_anyscale.yaml \
     --namespace anyscale-operator \

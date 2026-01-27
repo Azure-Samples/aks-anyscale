@@ -6,5 +6,7 @@ object_storage:
    bucket_name: abfss://${STORAGE_CONTAINER}@${STORAGE_ACCOUNT}.dfs.core.windows.net
 file_storage:
   persistent_volume_claim: blob-${STORAGE_PROTOCOL}
+azure_config:
+  tenant_id: ${AZURE_TENANT_ID}
 kubernetes_config:
-  anyscale_operator_iam_identity: $IDENTITY_CLIENT_ID
+  anyscale_operator_iam_identity: ${IDENTITY_PRINCIPAL_ID}
