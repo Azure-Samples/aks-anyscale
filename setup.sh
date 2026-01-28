@@ -54,7 +54,11 @@ else
 fi
 
 echo "==> Service Principal for Anyscale Kubernetes Operator Auth"
-az ad sp create --id "$ANYSCALE_SP_APP_ID"
+if az ad sp show --id "$ANYSCALE_SP_APP_ID" &>/dev/null; then
+  echo "Service principal $ANYSCALE_SP_APP_ID already exists"
+else
+  az ad sp create --id "$ANYSCALE_SP_APP_ID"
+fi
 
 echo "==> User Assigned Identity"
 if az identity show -g "$RESOURCE_GROUP" -n "$USER_IDENTITY_NAME" &>/dev/null; then
@@ -69,11 +73,20 @@ IDENTITY_ID=$(echo "$IDENTITY_JSON" | jq -r '.id')
 
 echo "==> Role Assignment"
 STORAGE_ACCOUNT_ID=$(az storage account show -g "$RESOURCE_GROUP" -n "$STORAGE_ACCOUNT" --query id -o tsv)
-echo "Ensuring role assignment exists for identity $USER_IDENTITY_NAME"
+echo "Ensuring Storage Blob Data Contributor role for identity $USER_IDENTITY_NAME (required for Blob read/write data)"
 if az role assignment create \
   --assignee-object-id "$IDENTITY_PRINCIPAL_ID" \
   --assignee-principal-type ServicePrincipal \
   --role "Storage Blob Data Contributor" \
+  --scope "$STORAGE_ACCOUNT_ID" &>/dev/null; then
+  echo "Role assignment already exists or cannot verify due to conditional access policies"
+fi
+
+echo "Ensuring Storage Account Key Operator role for identity $USER_IDENTITY_NAME (required for Blob list keys)"
+if az role assignment create \
+  --assignee-object-id "$IDENTITY_PRINCIPAL_ID" \
+  --assignee-principal-type ServicePrincipal \
+  --role "Storage Account Key Operator Service Role" \
   --scope "$STORAGE_ACCOUNT_ID" &>/dev/null; then
   echo "Role assignment already exists or cannot verify due to conditional access policies"
 fi
