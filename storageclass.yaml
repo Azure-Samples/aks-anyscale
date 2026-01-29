@@ -13,7 +13,14 @@ parameters:
 
 mountOptions:
   - -o allow_other
-  - --block-cache
+  - --file-cache-timeout-in-seconds=120
+  - --use-attr-cache=true
+  - --cancel-list-on-mount-seconds=10
+  - -o attr_timeout=120
+  - -o entry_timeout=120
+  - -o negative_timeout=120
+  - --log-level=LOG_WARNING
+  - --cache-size-mb=1000
 
 allowVolumeExpansion: true
 reclaimPolicy: Retain
