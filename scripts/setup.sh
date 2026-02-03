@@ -304,7 +304,7 @@ for REGION in $REGIONS; do
   helm upgrade ingress-nginx nginx/ingress-nginx \
     --version 4.12.1 \
     --namespace ingress-nginx \
-    --values values_nginx.yaml \
+    --values ../config/values_nginx.yaml \
     --create-namespace \
     --install
 
@@ -314,7 +314,7 @@ for REGION in $REGIONS; do
   helm upgrade nvdp nvdp/nvidia-device-plugin \
     --namespace nvidia-device-plugin \
     --version 0.17.1 \
-    --values values_nvidia.yaml \
+    --values ../config/values_nvidia.yaml \
     --create-namespace \
     --install
 
@@ -326,7 +326,7 @@ for REGION in $REGIONS; do
       -e "s/\${STORAGE_ACCOUNT}/${STORAGE_ACCOUNT}/g" \
       -e "s/\${AZURE_TENANT_ID}/${AZURE_TENANT_ID}/g" \
       -e "s/\${IDENTITY_PRINCIPAL_ID}/${IDENTITY_PRINCIPAL_ID}/g" \
-      cloud_resource.yaml > "$CLOUD_RESOURCE_YAML"
+      ../config/cloud_resource.yaml > "$CLOUD_RESOURCE_YAML"
 
   echo "----> Generated config saved to $CLOUD_RESOURCE_YAML"
   cat "$CLOUD_RESOURCE_YAML"
@@ -359,7 +359,7 @@ for REGION in $REGIONS; do
     --set-string global.auth.iamIdentity="$IDENTITY_CLIENT_ID" \
     --set-string global.auth.audience="api://${ANYSCALE_SP_APP_ID}/.default" \
     --set-string workloads.serviceAccount.name=anyscale-operator \
-    -f values_anyscale.yaml \
+    -f ../config/values_anyscale.yaml \
     --namespace anyscale-operator \
     --version 1.2.1 \
     --create-namespace \
@@ -371,12 +371,12 @@ for REGION in $REGIONS; do
       -e "s/\${STORAGE_ACCOUNT}/${STORAGE_ACCOUNT}/g" \
       -e "s/\${RESOURCE_GROUP}/${RESOURCE_GROUP}/g" \
       -e "s/\${IDENTITY_CLIENT_ID}/${IDENTITY_CLIENT_ID}/g" \
-      storageclass.yaml > "$STORAGECLASS_YAML"
+      ../config/storageclass.yaml > "$STORAGECLASS_YAML"
   kubectl apply -f "$STORAGECLASS_YAML"
 
   PVC_YAML="pvc_$STORAGE_PROTOCOL.yaml"
   sed -e "s/\${STORAGE_PROTOCOL}/${STORAGE_PROTOCOL}/g" \
-      pvc.yaml > "$PVC_YAML"
+      ../config/pvc.yaml > "$PVC_YAML"
   kubectl apply -f "$PVC_YAML"
 
   echo "==> Outputs for $REGION"
