@@ -3,15 +3,15 @@ from urllib.parse import urlparse
 import mlflow
 import numpy as np
 import torch
-from doggos.infer import TorchPredictor
-from doggos.model import collate_fn
-from doggos.utils import url_to_array
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from PIL import Image
+from ray import serve
 from starlette.requests import Request
 from transformers import CLIPModel, CLIPProcessor
 
-from ray import serve
+from doggos.infer import TorchPredictor
+from doggos.model import collate_fn
+from doggos.utils import MAX_IMAGE_BYTES, image_bytes_to_array
 
 
 @serve.deployment(
@@ -34,8 +34,8 @@ class ClassPredictor:
         self.predictor = TorchPredictor.from_artifacts_dir(artifacts_dir=artifacts_dir)
         self.preprocessor = self.predictor.preprocessor
 
-    def get_probabilities(self, url):
-        image = Image.fromarray(np.uint8(url_to_array(url=url))).convert("RGB")
+    def get_probabilities(self, image_array):
+        image = Image.fromarray(np.uint8(image_array)).convert("RGB")
         inputs = self.processor(images=[image], return_tensors="pt", padding=True).to(
             self.device
         )
@@ -63,9 +63,39 @@ class Doggos:
 
     @api.post("/predict/")
     async def predict(self, request: Request):
-        data = await request.json()
-        probabilities = await self.classifier.get_probabilities.remote(url=data["url"])
-        return probabilities
+        content_type = (
+            request.headers.get("content-type", "").split(";", 1)[0].strip().lower()
+        )
+        if not content_type.startswith("image/"):
+            raise HTTPException(status_code=415, detail="Request body must be an image")
+
+        content_length = request.headers.get("content-length")
+        if content_length is not None:
+            try:
+                declared_size = int(content_length)
+            except ValueError as exc:
+                raise HTTPException(
+                    status_code=400, detail="Invalid Content-Length header"
+                ) from exc
+            if declared_size < 0:
+                raise HTTPException(
+                    status_code=400, detail="Invalid Content-Length header"
+                )
+            if declared_size > MAX_IMAGE_BYTES:
+                raise HTTPException(status_code=413, detail="Image is too large")
+
+        image_data = bytearray()
+        async for chunk in request.stream():
+            if len(image_data) + len(chunk) > MAX_IMAGE_BYTES:
+                raise HTTPException(status_code=413, detail="Image is too large")
+            image_data.extend(chunk)
+
+        try:
+            image_array = image_bytes_to_array(image_data)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+        return await self.classifier.get_probabilities.remote(image_array=image_array)
 
 
 # Model registry.
